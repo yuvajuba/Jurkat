@@ -1,0 +1,127 @@
+/* ---------------------------------------------------------------- General styling */
+body {
+  background-color: whitesmoke;
+  font-size: 16px;
+}
+
+h1 {
+  background-color: darkcyan;
+  color: white;
+  font-size: 3.8rem;
+  font-weight: 600;
+  padding: 10px;
+  border-radius: 7px;
+  margin-top: 70px;
+}
+
+h1.title {
+  background-color: inherit;
+  color: darkred;
+  font-size: 4rem;
+  font-weight: 600;
+  padding: 0px;
+  margin-top: 20px;
+}
+
+h2, h3, h4, h5 {
+  background-color: inherit;
+  color: darkcyan;
+  font-weight: 600;
+  padding: 0px;
+  border-radius: 7px;
+}
+
+h2 {
+  font-size: 3.4rem;
+}
+
+h3 {
+  font-size: 3rem;
+}
+
+h4 {
+  font-size: 2.6rem;
+}
+
+h5 {
+  font-size: 2.2rem;
+}
+
+h4.author {
+  background-color: inherit;
+  color: black;
+  font-size: 2rem;
+  font-weight: 600;
+  padding: 0px;
+}
+
+h4.date {
+  background-color: inherit;
+  color: black;
+  font-size: 2rem;
+  font-weight: 600;
+  padding: 0px;
+}
+
+p {
+  font-size: 1.6rem
+}
+
+pre, pre.sourceCode {
+  background-color: white;
+  border: 1px solid silver;
+  border-radius: 7px;
+  box-shadow: 0px 0px 4px rgba(0, 0, 0, 0.5)
+}
+
+
+
+/* ---------------------------------------------------------------- TOC */
+.list-group-item.active, .list-group-item.active:hover {
+  background-color: darkcyan;
+  border-color: darkcyan;
+}
+
+.list-group-item {
+  color: darkcyan;
+}
+
+.list-group-item:hover {
+  background-color: darkcyan;
+  color: white;
+}
+
+
+
+/* ---------------------------------------------------------------- Text styling */
+.p-red {
+  color: darkred;
+}
+
+.p-red {
+  color: darkgreen;
+}
+
+.p-blue {
+  color: navy;
+}
+
+.p-purple {
+  color: purple;
+}
+
+.p-bold {
+  font-weight: 600;
+}
+
+.p-underline {
+  text-decoration: underline;
+}
+
+.p-120 {
+  font-size: 120%;
+}
+
+.p-140 {
+  font-size: 140%;
+}
