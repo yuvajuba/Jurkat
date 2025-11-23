@@ -14,6 +14,11 @@ output:
       smooth_scroll: true
     df_print: paged 
     css: "style.css"
+
+params:
+  MaxCount_threshold: 20
+  CpmCount_threshold: 0.5
+  MinSample: 3
 ---
 
 ```{css ,echo=FALSE}
@@ -32,6 +37,9 @@ out_obj <- "out_objects/"
 
 ## Import packages :
 source("scripts/packages.R") 
+
+## Import functions :
+source("scripts/functions.R")
 ```
 
 
@@ -160,17 +168,22 @@ metadata %>%
             size = 3.5)
 ```
 
-[In the downstream analysis (DEA), we'll be focusing on the top 2 biotypes (`protein_coding` and `lncRNA`)]{.p-120 .p-red .p-bold}
+[In the downstream analysis (DEA), we'll be focusing on the top 2 biotypes (`protein_coding` and `lncRNA`). Additional filtering will be applied :]{.p-120 .p-red .p-bold}
 
-```{r filtering-data}
-to_keep <- rownames(metadata[which(metadata$Gene_biotype %in% c("protein_coding","lncRNA")),])
-raw_counts_filt <- raw_counts[to_keep,]
+- `MaxCount_threshold` = __`r params$MaxCount_threshold`__ (At least 1 sample must have a read count over that value)
+- `CpmCount_threshold` = __`r params$CpmCount_threshold`__ (Count per million reads threshold)
+- `MinSample` = __`r params$MinSample`__ (Samples that should pass the cpm threshold)
 
-rm(to_keep)
+```{r}
+pre_process_results <- Pre_process(RCounts = raw_counts,
+                                   Conditions = experimental_data,
+                                   Metadata = metadata,
+                                   MaxCount_threshold = params$MaxCount_threshold,
+                                   CpmCount_threshold = params$CpmCount_threshold,
+                                   MinSample = params$MinSample)
 ```
 
-
-<br>
+<br><br>
 
 Now to understand the global gene expression landscape and to assess the quality control of our data, we need to perform a dimentionality reduction analysis : [Principal component analysis (PCA)]{.p-bold .p-purple}
 
@@ -187,51 +200,10 @@ We'll be using a [Variance Stabilizing Transformation (VST)]{.p-bold .p-purple} 
 - Use a __negative binomial__ model to estimate dispersion
 - Apply a variance-stabilizing mathematical transformation
 
-```{r pca-fit}
-## 1: build DESeq2 structure
-dds <- DESeqDataSetFromMatrix(countData = raw_counts_filt,
-                              colData = experimental_data,
-                              design = ~ Condition)
-
-## 2: apply vst
-vsd <- vst(dds, blind = T)
-#### blind = TRUE (gives a neutral VST - not influenced by the design 'condition')
-
-## 3: extract vst matrix 
-vst_mat <- assay(vsd)
-
-## 4: run PCA using prcomp()
-pca <- prcomp(t(vst_mat), scale. = TRUE)
-```
-
 ```{r pca-plot}
-autoplot(pca, 
-         data = experimental_data, 
-         colour = "Condition",
-         size = 4)+
-  labs(title = "PCA of Jurkat_ct vs Jurkat_H151")+
-  theme_bw()+
-  scale_colour_manual(values = c("Jurkat_H151"="brown", "Jurkat_ct"="black"))+
-  theme(
-    plot.title = element_text(size = 14,
-                              colour = "darkcyan",
-                              face = "bold"),
-    plot.background = element_rect(colour = "whitesmoke",
-                                   fill = "whitesmoke",
-                                   linewidth = 1),
-    legend.key = element_rect(colour = "whitesmoke",
-                              fill = "whitesmoke",
-                              linewidth = 1),
-    legend.background = element_rect(colour = "whitesmoke",
-                                     fill = "whitesmoke",
-                                     linewidth = 1),
-    legend.title = element_text(colour = "darkcyan",
-                              size = 12,
-                              face = "bold")
-  )
+pre_process_results$PCA_plt +
+  my_scatter_theme()
 ```
-
-
 
 
 

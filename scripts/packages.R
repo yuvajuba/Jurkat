@@ -19,7 +19,8 @@ List_packages <- c(
   "ggplot2",   # nice plotting
   "writexl",   # save files as xlsx
   "ggfortify", # to use the autoplot() function directly for pca  
-  "DESeq2"     # differential expression analysis
+  "DESeq2",    # differential expression analysis
+  "ggrepel"
 )
 
 ## 3. Load all required packages
