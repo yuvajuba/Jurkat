@@ -19,6 +19,7 @@ params:
   MaxCount_threshold: 20
   CpmCount_threshold: 0.5
   MinSample: 3
+  logfc_thresh: 1
 ---
 
 ```{css ,echo=FALSE}
@@ -181,6 +182,9 @@ pre_process_results <- Pre_process(RCounts = raw_counts,
                                    MaxCount_threshold = params$MaxCount_threshold,
                                    CpmCount_threshold = params$CpmCount_threshold,
                                    MinSample = params$MinSample)
+
+## Saving filtered raw_counts
+write_xlsx(pre_process_results$raw_filt, path = paste0(out_obj, "rawcounts_filtered.xlsx"))
 ```
 
 <br><br>
@@ -202,10 +206,114 @@ We'll be using a [Variance Stabilizing Transformation (VST)]{.p-bold .p-purple} 
 
 ```{r pca-plot}
 pre_process_results$PCA_plt +
+  scale_colour_manual(values = c("Jurkat_H151"="brown", "Jurkat_ct"="black"))+
   my_scatter_theme()
 ```
 
 
+
+# Differential expression analysis (DEA)
+
+Now let's dive into gene expression.
+
+```{r DESeq-object, echo=TRUE}
+dds <- pre_process_results$DESeqData
+dds$Condition <- relevel(dds$Condition, ref = "Jurkat_ct") ## set the control
+dds <- DESeq(dds) 
+```
+
+```{r DEA-res, rows.print=10}
+## Get the results
+res <- results(dds, contrast = c("Condition", "Jurkat_ct", "Jurkat_H151"), alpha = 0.05) %>% 
+  as.data.frame() %>% 
+  merge(metadata, by = 0) %>% 
+  column_to_rownames(var = "Row.names") %>% 
+  dplyr::filter(!(is.na(padj)))
+
+res
+```
+
+```{r All-results-creation}
+## Norm counts
+n_fact <- estimateSizeFactorsForMatrix(pre_process_results$raw_filt)
+tmp <- sweep(pre_process_results$raw_filt, 2, n_fact, FUN="/")
+n_counts <- list(n_counts = tmp,
+                 n_counts_log2 = log2(tmp+1),
+                 n_counts_log10 = log10(tmp+1))
+
+## Colnames correction
+colnames(n_counts$n_counts_log2) <- paste0(colnames(n_counts$n_counts_log2),"_log2")
+colnames(n_counts$n_counts_log10) <- paste0(colnames(n_counts$n_counts_log10),"_log10")
+colnames(n_counts$n_counts) <- paste0("norm_",colnames(n_counts$n_counts))
+
+## Combining the counts
+all_results <- cbind(pre_process_results$raw_filt, 
+                     n_counts$n_counts, 
+                     n_counts$n_counts_log2, 
+                     n_counts$n_counts_log10,
+                     res)
+
+## Final result (no filter)
+all_results <- all_results %>% 
+  dplyr::mutate(Log_basemean = log10(baseMean),
+                Rank = case_when(padj < 1e-100 ~
+                                   round(log2FoldChange*(-log10(1e-100))/30, 4),
+                                 padj >= 1e-100 & padj < 1e-50 ~
+                                   round(log2FoldChange*(-log10(1e-70))/30, 4),
+                                 padj >= 1e-50 & padj < 1e-20 ~
+                                   round(log2FoldChange*(-log10(1e-30))/30, 4),
+                                 padj >= 1e-20 & padj < 1e-10 ~
+                                   round(log2FoldChange*(-log10(1e-15))/30, 4),
+                                 padj >= 1e-10 & padj < 1e-05 ~
+                                   round(log2FoldChange*(-log10(1e-07))/30, 4),
+                                 padj >= 1e-05 & padj < 0.3 ~
+                                   round(log2FoldChange*(-log10(padj))/30, 4),
+                                 padj >= 0.3 ~ 0)) %>% 
+  dplyr::arrange(desc(Rank)) %>% 
+  dplyr::mutate(Rank_idx = seq(1, nrow(all_results)))
+
+## Final result (filtered)
+all_results_filt <- all_results %>% 
+  dplyr::filter(padj < 0.05,
+                abs(log2FoldChange) > params$logfc_thresh)
+
+## Saving the results
+write_xlsx(all_results, path = paste0(out_obj, "dea_results.xlsx"))
+write_xlsx(all_results_filt, path = paste0(out_obj, "dea_results_filt.xlsx"))
+
+rm(n_fact,tmp)
+```
+
+Let's get a quick overview of the distribution of the DEGs
+
+```{r Volcano-plot, fig.height=6}
+My_volcano(all_results_filt,
+           x= "log2FoldChange", 
+           y= "padj", 
+           lab= "Gene_name",
+           point_size= 3,
+           label_genes= T,
+           lab_size= 3,
+           lab_max_overlap= 15,
+           lab_box.padding= 0.4,
+           lab_colour = "navy", 
+           lab_fill = "white", 
+           lab_force_pull = .5,
+           selected_genes= NULL,
+           logFC_thresh= 1.5,
+           padj_thresh= 1e-10,
+           col_palette= NULL,
+           extend_xlim= 0.5)+
+  theme(
+    plot.background = element_rect(colour = "whitesmoke", fill = "whitesmoke"),
+    legend.background = element_rect(colour = "whitesmoke", fill = "whitesmoke"),
+    legend.key = element_rect(colour = "whitesmoke", fill = "whitesmoke"),
+    plot.title = element_text(colour = "darkcyan", face = "bold", margin = margin(b=0.15, unit = "in"), size = 14),
+    axis.title = element_text(colour = "darkcyan", face = "bold", size = 12),
+    axis.text = element_text(size = 11),
+    legend.text = element_text(size = 12)
+  )
+```
 
 
 

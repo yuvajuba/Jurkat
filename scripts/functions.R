@@ -72,7 +72,6 @@ Pre_process <- function(RCounts,
     labs(title = "PCA of Jurkat_ct vs Jurkat_H151",
          x = paste0("PC1 (", var_explained[1], "%)"),
          y = paste0("PC2 (", var_explained[2], "%)"))+
-    scale_colour_manual(values = c("Jurkat_H151"="brown", "Jurkat_ct"="black"))+
     theme_bw()
   
   
@@ -82,4 +81,179 @@ Pre_process <- function(RCounts,
                PCA_plt = plt)
   
   return(Outs)
+}
+
+
+
+## ---------------------------------------------- 3. Volcano plot (DEA)
+My_volcano <- function(df, 
+                       x= "log2FoldChange", 
+                       y= "padj", 
+                       lab= "Gene_name",
+                       point_size= 2,
+                       label_genes= F,
+                       lab_size= 3,
+                       lab_max_overlap= 20,
+                       lab_box.padding= 0.5,
+                       lab_colour = "navy", 
+                       lab_fill = "white", 
+                       lab_force_pull = .5,
+                       selected_genes= NULL,
+                       logFC_thresh= 1.5,
+                       padj_thresh= 1e-5,
+                       col_palette= NULL,
+                       extend_xlim= 0.5){
+  
+  if(!(is.data.frame(df))){
+    stop("your object isn't a dataframe !")
+  }
+  
+  if(!all(c(x, y) %in% colnames(df))){
+    stop(paste0("<",x,"> or <",y,"> isn't found in your dataframe !"))
+  }
+  
+  hline <- -log10(padj_thresh)
+  vline <- logFC_thresh
+  
+  ## Select genes :
+  if(is.null(selected_genes)){
+    selected_genes <- df %>% 
+      dplyr::filter(.data[[y]] < 1e-10,
+                    abs(.data[[x]]) > 2) %>% 
+      dplyr::pull(.data[[lab]])
+  }
+  
+  ## Color palette :
+  if(is.null(col_palette)){
+    col_palette <- c("pval & logFC"="darkred",
+                     "logFC"="darkgreen",
+                     "p-value"="midnightblue",
+                     "NS"="lightgray")
+  } else {
+    if(length(col_palette) < 4){
+      warning("The provided palette is of length < 4 ; therefor we're using default palette")
+      col_palette <- c("pval & logFC"="darkred",
+                       "logFC"="darkgreen",
+                       "p-value"="midnightblue",
+                       "NS"="lightgray")
+      
+    } else {
+      col_palette <- c("pval & logFC" = col_palette[1],
+                       "logFC" = col_palette[2],
+                       "p-value" = col_palette[3],
+                       "NS" = col_palette[4])
+    }
+  }
+  
+  
+  ## plot :
+  df %>% 
+    dplyr::mutate(Col = case_when(abs(.data[[x]]) > logFC_thresh & 
+                                    .data[[y]] < padj_thresh ~ "pval & logFC",
+                                  abs(.data[[x]]) > logFC_thresh & 
+                                    .data[[y]] > padj_thresh ~ "logFC",
+                                  abs(.data[[x]]) < logFC_thresh & 
+                                    .data[[y]] < padj_thresh ~ "p-value",
+                                  abs(.data[[x]]) < logFC_thresh & 
+                                    .data[[y]] > padj_thresh ~ "NS",
+                                  TRUE ~ "NS"),
+                  Sel_genes = ifelse(.data[[lab]] %in% selected_genes,
+                                     .data[[lab]],
+                                     NA)) -> df.plot
+  
+  
+  
+  if(isFALSE(label_genes)){
+    
+    plt <- df.plot %>% 
+      ggplot(aes(x= .data[[x]],
+                 y= -log10(.data[[y]])))+
+      geom_vline(xintercept = -(vline), linetype = 2, color = "black", linewidth = .4)+
+      geom_vline(xintercept = vline, linetype = 2, color = "black", linewidth = .4)+
+      geom_hline(yintercept = hline, linetype = 2, color = "black", linewidth = .4)+
+      geom_point(aes(colour = Col),
+                 size = point_size,
+                 alpha = 0.6)+
+      labs(title = "Volcano Plot",
+           caption = paste0("Number of genes : ", nrow(df)))+
+      theme(legend.position = "top",
+            legend.margin = margin(b=.05, unit = "in"),
+            legend.key = element_rect(colour = "white"),
+            panel.background = element_rect(fill = "white",
+                                            colour = "darkgray",
+                                            linewidth = .5),
+            legend.text = element_text(size = 13,
+                                       color = "black",
+                                       face = "bold"),
+            axis.title = element_text(size = 14,
+                                      face = "bold",
+                                      colour = "darkred"),
+            axis.title.x = element_text(margin = margin(t=12)),
+            axis.title.y = element_text(margin = margin(r=12)),
+            axis.text = element_text(size = 12,
+                                     colour = "black"),
+            plot.title = element_text(size = 16,
+                                      face = "bold",
+                                      colour = "darkred",
+                                      margin = margin(b=12)),
+            plot.caption = element_text(size = 13,
+                                        colour = "black"))+
+      guides(colour = guide_legend(title = NULL,
+                                   override.aes = list(size = 5)))+
+      scale_color_manual(values = col_palette)+
+      xlim(c((min(df[[x]]) - extend_xlim),(max(df[[x]]) + extend_xlim)))
+    
+  } else {
+    
+    plt <- df.plot %>% 
+      ggplot(aes(x= .data[[x]],
+                 y= -log10(.data[[y]])))+
+      geom_vline(xintercept = -(vline), linetype = 2, color = "black", linewidth = .4)+
+      geom_vline(xintercept = vline, linetype = 2, color = "black", linewidth = .4)+
+      geom_hline(yintercept = hline, linetype = 2, color = "black", linewidth = .4)+
+      geom_point(aes(colour = Col),
+                 size = point_size,
+                 alpha = 0.6)+
+      labs(title = "Volcano Plot",
+           caption = paste0("Number of genes : ", nrow(df)))+
+      theme(legend.position = "top",
+            legend.margin = margin(b=.05, unit = "in"),
+            legend.key = element_rect(colour = "white"),
+            panel.background = element_rect(fill = "white",
+                                            colour = "darkgray",
+                                            linewidth = .5),
+            legend.text = element_text(size = 13,
+                                       color = "black",
+                                       face = "bold"),
+            axis.title = element_text(size = 14,
+                                      face = "bold",
+                                      colour = "darkred"),
+            axis.title.x = element_text(margin = margin(t=12)),
+            axis.title.y = element_text(margin = margin(r=12)),
+            axis.text = element_text(size = 12,
+                                     colour = "black"),
+            plot.title = element_text(size = 16,
+                                      face = "bold",
+                                      colour = "darkred",
+                                      margin = margin(b=12)),
+            plot.caption = element_text(size = 13,
+                                        colour = "black"))+
+      guides(colour = guide_legend(title = NULL,
+                                   override.aes = list(size = 5)))+
+      scale_color_manual(values = col_palette)+
+      xlim(c((min(df[[x]]) - extend_xlim),(max(df[[x]]) + extend_xlim)))+
+      geom_label_repel(aes(label = .data[["Sel_genes"]]),
+                       size = lab_size,
+                       max.overlaps = lab_max_overlap, 
+                       box.padding = lab_box.padding,
+                       label.r = 0.4,
+                       label.size = .25, 
+                       force_pull = lab_force_pull,
+                       colour = lab_colour, 
+                       fill = lab_fill)
+    
+  }
+  
+  
+  return(plt)
 }
