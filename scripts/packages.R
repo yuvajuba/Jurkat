@@ -12,15 +12,33 @@ load_or_install <- function(pkgs){
 
 ## 2. List of packages used in this project
 List_packages <- c(
-  "readxl",    # read xlsx files
-  "dplyr",     # data manipulation
-  "tibble",    # data manipulation
-  "tidyr",     # data manipulation
-  "ggplot2",   # nice plotting
-  "writexl",   # save files as xlsx
-  "ggfortify", # to use the autoplot() function directly for pca  
-  "DESeq2",    # differential expression analysis
-  "ggrepel"
+  
+  ## General packages
+  "readxl",         
+  "writexl",        
+  "dplyr",          
+  "tibble",         
+  "tidyr",          
+  "ggplot2",        
+  "ggfortify",      # to use the autoplot() function directly for pca  
+  "ggrepel",   
+  "DT",
+  "forcats",
+  "ggvenn",
+  
+  ## Differential expression analysis
+  "DESeq2",         
+  "ComplexHeatmap", 
+  "circlize",
+  
+  ## Pathway enrichment analysis
+  "clusterProfiler",
+  "enrichplot",
+  "org.Hs.eg.db",
+  "AnnotationDbi",
+  "igraph",
+  "ggraph",
+  "tidygraph"
 )
 
 ## 3. Load all required packages
