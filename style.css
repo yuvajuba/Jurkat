@@ -10,8 +10,8 @@ h1 {
   font-size: 3.8rem;
   font-weight: 600;
   padding: 10px;
-  border-radius: 7px;
-  margin-top: 70px;
+  border-radius: 10px;
+  margin-top: 120px;
 }
 
 .title {
@@ -28,24 +28,18 @@ h2, h3, h4, h5 {
   color: darkcyan;
   font-weight: 600;
   padding: 0;
-  border-radius: 7px;
+  border-radius: 10px;
 }
 
 h2 {
   font-size: 3.4rem;
+  margin-top: 70px;
 }
 
-h3 {
-  font-size: 3rem;
-}
-
-h4 {
-  font-size: 2.6rem;
-}
-
-h5 {
-  font-size: 2.2rem;
-}
+h1 > h2 {margin-top: 15px;}
+h3 {font-size: 3rem;}
+h4 {font-size: 2.6rem;}
+h5 {font-size: 2.2rem;}
 
 .author {
   background-color: inherit;
@@ -70,10 +64,13 @@ p {
 pre, pre.sourceCode {
   background-color: white;
   border: 1px solid silver;
-  border-radius: 7px;
+  border-radius: 15px;
   box-shadow: 0 0 4px rgba(0, 0, 0, 0.5)
 }
 
+div.sourceCode {
+  border-radius: 15px;
+}
 
 
 /* ---------------------------------------------------------------- TOC */
@@ -91,113 +88,49 @@ pre, pre.sourceCode {
   color: white;
 }
 
+#TOC {
+  border-radius: 15px;
+}
+
 
 
 /* ---------------------------------------------------------------- Text styling */
-.p-red {
-  color: darkred;
-}
+.red {color: darkred;}
+.green {color: darkgreen;}
+.blue {color: navy;}
+.purple {color: purple;}
+.orangered {color: orangered;}
 
-.p-green {
-  color: darkgreen;
-}
+.bold {font-weight: 600;}
+.p-underline {text-decoration: underline;}
 
-.p-blue {
-  color: navy;
-}
-
-.p-purple {
-  color: purple;
-}
-
-.p-bold {
-  font-weight: 600;
-}
-
-.p-underline {
-  text-decoration: underline;
-}
-
-.p-120 {
-  font-size: 120%;
-}
-
-.p-140 {
-  font-size: 140%;
-}
+.p-110 {font-size: 110%;}
+.p-120 {font-size: 120%;}
+.p-130 {font-size: 130%;}
+.p-140 {font-size: 140%;}
 
 
 
 /* ---------------------------------------------------------------- Chunk styling */
-.scroll-200-red,
-.scroll-200-green {
+.scroll-200, 
+.scroll-250,
+.scroll-300,
+.scroll-500 {
   background-color: inherit;
   overflow-y: auto;
-  max-height: 200px;
   font-weight: 600;
 }
 
-.scroll-200-red {
-  color: darkred;
-}
+.scroll-200 {max-height: 200px;}
+.scroll-250 {max-height: 250px;}
+.scroll-300 {max-height: 300px;}
+.scroll-500 {max-height: 500px;}
 
-.scroll-200-green {
-  color: darkgreen;
-}
 
 /* --------------- Chrome scrollbar ------------ */
-.scroll-200-red::-webkit-scrollbar,
-.scroll-200-green::-webkit-scrollbar {
-  width: 10px;
-}
+::-webkit-scrollbar {width: 0px;}
+::-moz-scrollbar {width: 0px;}
 
-.scroll-200-red::-webkit-scrollbar-track,
-.scroll-200-green::-webkit-scrollbar-track {
-  border-radius: 7px;
-  background-color: inherit;
-  color: inherit;
-}
-
-.scroll-200-red::-webkit-scrollbar-thumb,
-.scroll-200-green::-webkit-scrollbar-thumb {
-  border-radius: 7px;
-  background-color: silver;
-  color: silver;
-}
-
-.scroll-200-red::-webkit-scrollbar-thumb:hover,
-.scroll-200-green::-webkit-scrollbar-thumb:hover {
-  border-radius: 7px;
-  background-color: darkcyan;
-  color: darkcyan;
-}
-
-/* --------------- Mozilla scrollbar ------------ */
-.scroll-200-red::-moz-scrollbar,
-.scroll-200-green::-moz-scrollbar {
-  width: 10px;
-}
-
-.scroll-200-red::-moz-scrollbar-track,
-.scroll-200-green::-moz-scrollbar-track {
-  border-radius: 7px;
-  background-color: inherit;
-  color: inherit;
-}
-
-.scroll-200-red::-moz-scrollbar-thumb,
-.scroll-200-green::-moz-scrollbar-thumb {
-  border-radius: 7px;
-  background-color: silver;
-  color: silver;
-}
-
-.scroll-200-red::-moz-scrollbar-thumb:hover,
-.scroll-200-green::-moz-scrollbar-thumb:hover {
-  border-radius: 7px;
-  background-color: darkcyan;
-  color: darkcyan;
-}
 
 
 .note {
@@ -205,7 +138,19 @@ pre, pre.sourceCode {
   border: 3px ridge darkorange;
   background-color: rgba(200, 200, 0, 0.3);
   padding: 5px;
-  border-radius: 7px;
+  border-radius: 15px;
 }
+
+.note2 {
+  width: 100%;
+  border: 4px ridge rgb(0, 160, 125);
+  background-color: rgba(0, 180, 145, 0.3);
+  padding: 10px;
+  border-radius: 15px;
+}
+
+.figure, .figure img {border-radius: 15px;}
+.figure img {box-shadow: 0 0 5px #11111188;}
+
 
 

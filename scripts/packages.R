@@ -25,6 +25,8 @@ List_packages <- c(
   "DT",
   "forcats",
   "ggvenn",
+  "stringr",
+  "purrr",
   
   ## Differential expression analysis
   "DESeq2",         
@@ -36,9 +38,11 @@ List_packages <- c(
   "enrichplot",
   "org.Hs.eg.db",
   "AnnotationDbi",
+  "msigdbr",
   "igraph",
   "ggraph",
-  "tidygraph"
+  "tidygraph",
+  "fgsea"
 )
 
 ## 3. Load all required packages

@@ -1,0 +1,542 @@
+---
+title: "Jurkat project - Enrichment"
+author: "Juba"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    number_sections: no
+    theme: flatly
+    highlight: tango
+    toc: yes
+    toc_depth: 6
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+    df_print: paged 
+    css: "style2.css"
+---
+
+```{r setup, include=FALSE, message = FALSE, warning = FALSE, echo = FALSE}
+## Chunks configuration :
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, echo = FALSE)
+
+## Directories :
+out_fig_explore <- "out_figures/exploration/"
+out_fig_dea <- "out_figures/dea/"
+out_obj <- "out_objects/"
+
+## Import packages :
+source("scripts/packages.R") 
+
+## Import functions :
+source("scripts/functions.R")
+
+rm(Pre_process, nlog_scale_data, load_or_install, List_packages)
+```
+
+<div class="note p-120">
+<p>
+In the first part of the analysis, we performed a `DE Analysis` to identify the <strong>DEGs</strong> between <strong>Jurkat cells</strong> 
+<span class="bold purple">(treated or not with H151)</span>. 
+This was followed by a `PE Analysis`, focusing specifically on the enrichment of <strong>downregulated genes</strong>, 
+which led to the identification of a set of <strong>significantly enriched GO terms</strong>.
+</p><br>
+
+<p class="red bold">
+In this second part of the project, we perform a detailed inspection of the enriched terms to better understand their biological relevance and relationships.
+</p>
+</div>
+
+<br>
+
+[Importing the data]{.bold .p-120 .red}
+
+```{r import-data, echo=TRUE}
+goObject <- readRDS(paste0(out_obj, "goObj_downDegs.rds"))
+goResults <- read_xlsx(paste0(out_obj, "goResults_downDegs.xlsx"))
+deaResults <- read_xlsx(paste0(out_obj, "dea_results_filt.xlsx"))
+```
+
+<br>
+
+[Overview of the terms]{.bold .p-120 .red}
+
+```{r, class.output="scroll-500 bold"}
+for(i in 1:nrow(goResults)){
+  cat(sprintf("%-80s: %s",
+              goResults$Description[i],
+              goResults$RichFactor_ratio[i]),
+      sep = "\n")
+}
+```
+
+
+
+# Terms inspections
+
+## Semantic similarity analysis
+
+https://yulab-smu.top/biomedical-knowledge-mining-book/01-semantic-similarity.html
+
+Semantic similarity analysis aims to **quantify how close biological concepts are**, not based on gene overlap alone, but on their **meaning within an ontology**. In the context of Gene Ontology (GO), each term is part of a **structured graph (a Directed Acyclic Graph, DAG)** where nodes represent biological concepts and edges encode relationships such as *is_a* or *part_of*.  
+Instead of treating enriched GO terms as independent entities, semantic similarity allows us to **compare terms by exploiting this structure**, capturing shared biological context even when the associated gene sets differ.
+
+In practice, semantic similarity helps to **reduce redundancy** in enrichment results, **group related GO terms**, and highlight **functional modules** rather than long, partially overlapping lists of terms. This is particularly useful in Pathway Enrichment Analysis (PEA), where many significant terms may describe closely related biological processes at different levels of granularity.
+
+Several semantic similarity measures exist, broadly divided into **information-content–based methods** (e.g. Resnik, Lin, Jiang–Conrath) and **graph-based methods**. In this work, we use the **Wang method**, a graph-based approach that evaluates similarity by considering the **shared ancestors of two GO terms** and their **positions within the GO DAG**. By weighting contributions from parent terms according to their distance and relationship type, the Wang method provides a **biologically intuitive measure of functional relatedness**, independent of external annotation frequencies.
+
+[Wang semantic similarity method]{.bold .purple .p-120}
+
+The Wang method defines the semantic similarity between two GO terms by explicitly leveraging the **structure of the GO Directed Acyclic Graph (DAG)**. Each GO term is assigned a **semantic value (SV)**, computed as the sum of contributions from all its ancestor terms in the DAG, where **closer ancestors contribute more strongly** than distant ones. These contributions are propagated through GO relationships using predefined edge weights, ensuring that the **topological context** of each term is preserved. The semantic similarity between two terms is then calculated as the **normalized overlap of their semantic values**, providing a graph-based, biologically intuitive measure of functional relatedness independent of gene annotation frequencies.
+
+The Wang semantic similarity between two GO terms *A* and *B* is computed as:
+
+\[
+S_A(t) =
+\begin{cases}
+1, & \text{if } t = A \\
+\max\limits_{t' \in \text{children}(t)} \left( w_e \times S_A(t') \right), & \text{if } t \neq A
+\end{cases}
+\]
+
+where \(S_A(t)\) is the **semantic contribution (S-value)** of term \(t\) to term \(A\), and \(w_e\) is the weight associated with the GO relationship between \(t\) and its child \(t'\).
+
+The **semantic value** of term \(A\) is then defined as:
+
+\[
+SV(A) = \sum_{t \in T_A} S_A(t)
+\]
+
+Finally, the Wang semantic similarity between terms \(A\) and \(B\) is given by:
+
+\[
+\mathrm{sim}_{\text{Wang}}(A,B) =
+\frac{\sum_{t \in T_A \cap T_B} \left( S_A(t) + S_B(t) \right)}
+{SV(A) + SV(B)}
+\]
+
+<br><br>
+
+
+## Terms correlation {.tabset .tabset-pills}
+
+Now, let's inspect the similarity between the terms using [Wang semantic similarity]{.bold .purple}. First let's visualize the `similarity matrix`!
+
+[Similarity scores are between 0 and 1, the closer to 1 the more similar are the 2 terms]{.bold .green}
+
+```{r, include=FALSE}
+simData <- GOSemSim::godata(OrgDb = org.Hs.eg.db,
+                 ont = "BP",
+                 keytype = "SYMBOL")
+
+## pair go object
+goObject <- pairwise_termsim(x = goObject,
+                             semData = simData,
+                             method = 'Wang')
+
+## Similarity matrix
+mat <- goObject@termsim
+all(colnames(mat) == goResults$Description)
+colnames(mat) <- goResults$ID
+rownames(mat) <- colnames(mat)
+```
+
+```{r}
+mat %>% as.data.frame() %>% datatable(options = list(scrollX = T, pageLength = 5))
+```
+
+<br>
+
+And below is a correlation plot between all the terms
+
+```{r, fig.height=13, fig.width=14}
+corrplot::corrplot(mat,
+                   method = 'circle',
+                   type = 'lower',
+                   col = c("#fff", "#fff", "#fff", "#fff", 
+                           "#ffe", "#c90", "#a05", "#501"),
+                   col.lim = c(0, 1),
+                   tl.cex = 0.8,
+                   tl.col = "#111",
+                   tl.pos = "ld",
+                   tl.srt = 45,
+                   cl.cex = 0.8,
+                   cl.ratio = 0.06,
+                   hclust.method = "ward.D",
+                   diag = F,
+                   order = "hclust",
+                   is.corr = T)
+```
+
+<br><br>
+
+And by selecting different similarity scores threshold, let's visualize a network of our enriched terms
+
+```{r}
+emap <- list()
+emap[["sim0.5"]] <- mapTermsPlot(goObject = goObject,
+                     goSimData = simData,
+                     pairwiseTermsimMethod = "Wang",
+                     selectTerms = goResults$Description,
+                     similarityCutoff = 0.5,
+                     networkLayout = "nicely",
+                     nodesColour = NULL,
+                     nodesAlpha = 0.9,
+                     edgesAlpha = 0.4,
+                     edgesColour = "#777",
+                     plotTitleSize = 14,
+                     legendTitleSize = 13,
+                     legendTextSize = 11,
+                     labelsColour = "#222",
+                     labelsAlpha = 0.9,
+                     labelsSize = 3.5,
+                     labelParams = list(distinctTerms = F,
+                                        labelBy = c("strength"),
+                                        labelsPerCluster = 3,
+                                        withTies = T))
+
+emap[["sim0.6"]] <- mapTermsPlot(goObject = goObject,
+                     goSimData = simData,
+                     pairwiseTermsimMethod = "Wang",
+                     selectTerms = goResults$Description,
+                     similarityCutoff = 0.6,
+                     networkLayout = "nicely",
+                     nodesColour = NULL,
+                     nodesAlpha = 0.9,
+                     edgesAlpha = 0.4,
+                     edgesColour = "#777",
+                     plotTitleSize = 14,
+                     legendTitleSize = 13,
+                     legendTextSize = 11,
+                     labelsColour = "#222",
+                     labelsAlpha = 0.9,
+                     labelsSize = 3.5,
+                     labelParams = list(distinctTerms = F,
+                                        labelBy = c("strength"),
+                                        labelsPerCluster = 3,
+                                        withTies = T))
+
+emap[["sim0.7"]] <- mapTermsPlot(goObject = goObject,
+                     goSimData = simData,
+                     pairwiseTermsimMethod = "Wang",
+                     selectTerms = goResults$Description,
+                     similarityCutoff = 0.7,
+                     networkLayout = "nicely",
+                     nodesColour = NULL,
+                     nodesAlpha = 0.9,
+                     edgesAlpha = 0.4,
+                     edgesColour = "#777",
+                     plotTitleSize = 14,
+                     legendTitleSize = 13,
+                     legendTextSize = 11,
+                     labelsColour = "#222",
+                     labelsAlpha = 0.9,
+                     labelsSize = 3.5,
+                     labelParams = list(distinctTerms = F,
+                                        labelBy = c("strength"),
+                                        labelsPerCluster = 3,
+                                        withTies = T))
+
+emap[["sim0.8"]] <- mapTermsPlot(goObject = goObject,
+                     goSimData = simData,
+                     pairwiseTermsimMethod = "Wang",
+                     selectTerms = goResults$Description,
+                     similarityCutoff = 0.8,
+                     networkLayout = "nicely",
+                     nodesColour = NULL,
+                     nodesAlpha = 0.9,
+                     edgesAlpha = 0.4,
+                     edgesColour = "#777",
+                     plotTitleSize = 14,
+                     legendTitleSize = 13,
+                     legendTextSize = 11,
+                     labelsColour = "#222",
+                     labelsAlpha = 0.9,
+                     labelsSize = 3.5,
+                     labelParams = list(distinctTerms = F,
+                                        labelBy = c("strength"),
+                                        labelsPerCluster = 3,
+                                        withTies = T))
+```
+
+
+<br>
+
+### Sim0.5
+
+
+```{r, fig.width=11, fig.height=9}
+emap$sim0.5$plot
+```
+
+<br><br>
+
+### Sim0.6
+
+```{r, fig.width=11, fig.height=9}
+emap$sim0.6$plot
+```
+
+<br><br>
+
+### Sim0.7
+
+```{r, fig.width=11, fig.height=9}
+emap$sim0.7$plot
+```
+
+<br><br>
+
+### Sim0.8
+
+```{r, fig.width=11, fig.height=9}
+emap$sim0.8$plot
+```
+
+<br><br>
+
+
+## Clusters annotation
+
+Now let's prepare our list for cluster annotation.
+
+We'll use `Sims0.7` results as cluster grouping, below are the different clusters. 
+
+```{r, error=TRUE}
+cluster_terms_genes_list <- list()
+x <- emap$sim0.7$nodeData %>% 
+    dplyr::mutate(cluster = if_else(cluster == "Distinct", 
+                                    Description,
+                                    cluster))
+for(i in unique(x$cluster)){
+  terms <- x %>% 
+    dplyr::filter(cluster == i) %>% 
+    dplyr::pull(Description)
+  
+  genes <- c()
+  for(j in unique(terms)){
+    tmp <- stringr::str_split(x$geneID[x$Description == j], pattern = "/") %>% unlist()
+    genes <- append(genes, tmp)
+  }
+  
+  cluster_terms_genes_list[[i]] <- list(terms = terms,
+                 genes = unique(genes))
+  
+  rm(terms, genes, tmp)
+}
+
+rm(x)
+```
+
+Every cluster with at least will be grouped and annotated into 1 `super-Term` ! 
+The __Distinct__ group represent all the individual terms outside the `similarity score` threshold range.
+
+```{r, fig.width=12, fig.height=10}
+x <- mapTermsPlot(goObject = goObject,
+                  goSimData = simData,
+                  pairwiseTermsimMethod = "Wang",
+                  selectTerms = goResults$Description,
+                  similarityCutoff = 0.7,
+                  networkLayout = "nicely",
+                  nodesColour = NULL,
+                  nodesAlpha = 0.9,
+                  edgesAlpha = 0.3,
+                  edgesColour = "#777",
+                  plotTitleSize = 14,
+                  legendTitleSize = 13,
+                  legendTextSize = 11,
+                  labelsColour = "#222",
+                  labelsAlpha = 0.9,
+                  labelsSize = 3,
+                  labelParams = list(distinctTerms = F,
+                                     labelBy = c("strength"),
+                                     labelsPerCluster = 4,
+                                     withTies = T))
+
+
+x$plot
+```
+
+Below is the complete list of terms within each cluster
+
+```{r, class.output="scroll-700 bold navy"}
+clusters_df <- do.call(
+  rbind,
+  lapply(names(cluster_terms_genes_list), function(cl){
+    data.frame(
+      cluster = cl,
+      terms = paste(cluster_terms_genes_list[[cl]]$terms, collapse = "/"),
+      geneID  = paste(cluster_terms_genes_list[[cl]]$genes, collapse = "/"),
+      stringsAsFactors = FALSE
+    )
+  })
+)
+
+x <- clusters_df %>% 
+  dplyr::filter(cluster %in% grep("[0-9]", clusters_df$cluster, value = T))
+
+for(i in x$cluster){
+  cat(
+    paste0("Cluster ===>  ", i),
+    "=============================",
+    paste(cluster_terms_genes_list[[i]]$terms, sep = "\n"),
+    "\n",
+    sep = "\n"
+  )
+}
+```
+
+[And now, annotating the clusters accordingly!]{.p-110 .bold .red}
+
+```{r, echo=TRUE}
+clusters_df <- clusters_df %>%
+  dplyr::mutate(
+    superTerm = dplyr::case_when(
+      cluster == "1"  ~ "Immune cell activation",
+      cluster == "2"  ~ "Integrated stress response",
+      cluster == "3"  ~ "Regulation of immune cells activation",
+      cluster == "4"  ~ "Cell-cell adhesion",
+      cluster == "5"  ~ "Heat generation regulation",
+      cluster == "7"  ~ "Protein misfolding response",
+      cluster == "8"  ~ "Vascular system processes",
+      cluster == "10" ~ "T cell immune regulation",
+      cluster == "11" ~ "Hematopoiesis regulation",
+      cluster == "17" ~ "ER unfolded protein response",
+      cluster == "20" ~ "Response to biotic signals",
+      cluster == "21" ~ "Bacterial molecule detection and response",
+      cluster == "23" ~ "Lymphoid lineage differentiation",
+      cluster == "24" ~ "Inflammatory response",
+      cluster == "26" ~ "Viral host entry",
+      cluster == "28" ~ "T cell mediated immunity and cytotoxicity",
+      cluster == "29" ~ "Defense response activation",
+      cluster == "30" ~ "Cell adhesion regulation",
+      cluster == "31" ~ "Angiogenesis processes",
+      cluster == "32" ~ "ER stress regulation",
+      cluster == "33" ~ "Chloride transport",
+      cluster == "38" ~ "Chondrocyte differentiation and cartilage development",
+      TRUE ~ cluster
+    )
+  )
+
+```
+
+```{r, fig.height=9, fig.width=9}
+x <- Net_clust_plot(clustData = clusters_df[1:5,],
+                    colnameCluster = "superTerm",
+                    colnameGene = "geneID",
+                    deaData = deaResults,
+                    colnameGeneDea = "Gene_name",
+                    colnameLogFC = "log2FoldChange",
+                    net.layout = "nicely",
+                    edge.param.color = NULL,
+                    edge.param.width = .6,
+                    edge.param.alpha = .4,
+                    edge.legend.width = 1.8,
+                    edge.legend.position = "top",
+                    edge.legend.direction = "horizontal",
+                    edge.legend.layers = 2,
+                    edge.legend.fontsize = 11,
+                    node.param.term.color = "black",
+                    node.param.term.size = c(9,5),
+                    node.param.gene.logFC = T,
+                    node.param.gene.color = "darkcyan",
+                    node.param.gene.size = 3.5,
+                    node.param.gene.alpha = .7,
+                    label.genes = T,
+                    label.gene.color = c("red","purple","black"),
+                    label.gene.size = 2.5,
+                    label.gene.alpha = 0.9,
+                    label.gene.repel = T)
+
+x$plot
+```
+
+<br>
+
+```{r, fig.height=9, fig.width=9}
+x <- Net_clust_plot(clustData = clusters_df[6:10,],
+                    colnameCluster = "superTerm",
+                    colnameGene = "geneID",
+                    deaData = deaResults,
+                    colnameGeneDea = "Gene_name",
+                    colnameLogFC = "log2FoldChange",
+                    net.layout = "nicely",
+                    edge.param.color = NULL,
+                    edge.param.width = .6,
+                    edge.param.alpha = .4,
+                    edge.legend.width = 1.8,
+                    edge.legend.position = "top",
+                    edge.legend.direction = "horizontal",
+                    edge.legend.layers = 2,
+                    edge.legend.fontsize = 11,
+                    node.param.term.color = "black",
+                    node.param.term.size = c(9,5),
+                    node.param.gene.logFC = T,
+                    node.param.gene.color = "darkcyan",
+                    node.param.gene.size = 3.5,
+                    node.param.gene.alpha = .7,
+                    label.genes = T,
+                    label.gene.color = c("red","purple","black"),
+                    label.gene.size = 2.5,
+                    label.gene.alpha = 0.9,
+                    label.gene.repel = T)
+
+x$plot
+```
+
+<br>
+
+```{r, fig.height=9, fig.width=9}
+x <- Net_clust_plot(clustData = clusters_df[11:15,],
+                    colnameCluster = "superTerm",
+                    colnameGene = "geneID",
+                    deaData = deaResults,
+                    colnameGeneDea = "Gene_name",
+                    colnameLogFC = "log2FoldChange",
+                    net.layout = "nicely",
+                    edge.param.color = NULL,
+                    edge.param.width = .6,
+                    edge.param.alpha = .4,
+                    edge.legend.width = 1.8,
+                    edge.legend.position = "top",
+                    edge.legend.direction = "horizontal",
+                    edge.legend.layers = 3,
+                    edge.legend.fontsize = 11,
+                    node.param.term.color = "black",
+                    node.param.term.size = c(9,5),
+                    node.param.gene.logFC = T,
+                    node.param.gene.color = "darkcyan",
+                    node.param.gene.size = 3.5,
+                    node.param.gene.alpha = .7,
+                    label.genes = T,
+                    label.gene.color = c("red","purple","black"),
+                    label.gene.size = 2.5,
+                    label.gene.alpha = 0.9,
+                    label.gene.repel = T)
+
+x$plot
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

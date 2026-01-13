@@ -3,3 +3,6 @@ data/
 .Rproj.user
 Jurkat.Rproj
 GSE48558/
+figure/
+gsea-geneSets/
+jurkat-GSE48558/

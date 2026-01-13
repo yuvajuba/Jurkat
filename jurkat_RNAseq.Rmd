@@ -52,7 +52,7 @@ We are studying the effect of an inhibitor of the cGAS-STING signaling pathway _
 The biological experiment revealed that H151 causes cell death, so the pathway is important 
 for survival of T-ALL.
 
-[We want to explore the differential expressed genes between normal condition and by inhibiting the pathway. Thus we are going to perform a differential expression analysis (DEA) followed by a pathway enrichment analysis (PEA)]{.p-purple .p-bold}
+[We want to explore the differential expressed genes between normal condition and by inhibiting the pathway. Thus we are going to perform a differential expression analysis (DEA) followed by a pathway enrichment analysis (PEA)]{.purple .bold}
 
 __Following a basic RNA-seq pipeline analysis__
 
@@ -170,7 +170,7 @@ metadata %>%
             size = 3.5)
 ```
 
-[In the downstream analysis (DEA), we'll be focusing on the top 2 biotypes (`protein_coding` and `lncRNA`). Additional filtering will be applied :]{.p-120 .p-red .p-bold}
+[In the downstream analysis (DEA), we'll be focusing on the top 2 biotypes (`protein_coding` and `lncRNA`). Additional filtering will be applied :]{.p-120 .red .bold}
 
 - `MaxCount_threshold` = __`r params$MaxCount_threshold`__ (At least 1 sample must have a read count over that value)
 - `CpmCount_threshold` = __`r params$CpmCount_threshold`__ (Count per million reads threshold)
@@ -190,7 +190,7 @@ write_xlsx(pre_process_results$raw_filt, path = paste0(out_obj, "rawcounts_filte
 
 <br><br>
 
-Now to understand the global gene expression landscape and to assess the quality control of our data, we need to perform a dimentionality reduction analysis : [Principal component analysis (PCA)]{.p-bold .p-purple}
+Now to understand the global gene expression landscape and to assess the quality control of our data, we need to perform a dimentionality reduction analysis : [Principal component analysis (PCA)]{.bold .purple}
 
 The PCA :
 
@@ -199,7 +199,7 @@ The PCA :
 
 So we need to perform some data transformation first on `raw counts`.
 
-We'll be using a [Variance Stabilizing Transformation (VST)]{.p-bold .p-purple} from the `DESeq2` package. And This will :
+We'll be using a [Variance Stabilizing Transformation (VST)]{.bold .purple} from the `DESeq2` package. And This will :
 
 - Normalize for library size (`DESeq2` computes size factors using a `median-of-ratios` method)
 - Use a __negative binomial__ model to estimate dispersion
@@ -264,21 +264,17 @@ all_results <- all_results %>%
                 Gene_name = case_when(is.na(Gene_name) ~ rownames(all_results),
                                       TRUE ~ Gene_name),
                 ensembl = rownames(all_results),
-                Rank = case_when(padj < 1e-100 ~
-                                   round(log2FoldChange*(-log10(1e-100))/30, 4),
-                                 padj >= 1e-100 & padj < 1e-50 ~
-                                   round(log2FoldChange*(-log10(1e-70))/30, 4),
-                                 padj >= 1e-50 & padj < 1e-20 ~
-                                   round(log2FoldChange*(-log10(1e-30))/30, 4),
-                                 padj >= 1e-20 & padj < 1e-10 ~
-                                   round(log2FoldChange*(-log10(1e-15))/30, 4),
-                                 padj >= 1e-10 & padj < 1e-05 ~
-                                   round(log2FoldChange*(-log10(1e-07))/30, 4),
-                                 padj >= 1e-05 & padj < 0.3 ~
-                                   round(log2FoldChange*(-log10(padj))/30, 4),
-                                 padj >= 0.3 ~ 0)) %>% 
+                padj = padj + 1e-300,
+                Rank = case_when(
+                  abs(log2FoldChange) >= 3 & padj < 0.5 ~ 
+                    round((sign(log2FoldChange)*3) * (-log10(padj)/10), 4),
+                  abs(log2FoldChange) < 3 & padj < 0.5 ~
+                    round(log2FoldChange * (-log10(padj)/10), 4),
+                  padj >= 0.5 ~ 0
+                )) %>% 
   dplyr::arrange(desc(Rank)) %>% 
-  dplyr::mutate(Rank_idx = seq(1, nrow(all_results)))
+  dplyr::mutate(Rank_idx = seq(1, nrow(all_results))) %>% 
+  dplyr::distinct(Gene_name, .keep_all = T)
 
 ## Final result (filtered)
 all_results_filt <- all_results %>% 
@@ -323,6 +319,8 @@ My_volcano(all_results_filt,
 
 - Heatmap:
 
+Let's draw a heatmap of the top 20up and 20down genes
+
 ```{r heatmap-setup}
 ## 1- table of counts and genes selection
 selected_genes <- all_results_filt[c(1:20, (nrow(all_results_filt)-19):nrow(all_results_filt)),]
@@ -363,7 +361,7 @@ HAnnot <- HeatmapAnnotation(Condition = Cond,
 HAnnot2 <- HeatmapAnnotation(LogCounts = anno_boxplot(log_counts, 
                                                       axis = TRUE, 
                                                       gp = gpar(fill = "orange", col = "black"),
-                                                      height = unit(2, "cm")),
+                                                      height = unit(1.7, "cm")),
                              annotation_name_side = "left",
                              annotation_name_gp = gpar(fontsize = 10,
                                                        col = "darkcyan",
@@ -385,6 +383,8 @@ heatmap_legend_param = list(legend_height = unit(3,"cm"),
                             legend_gp = gpar(fontsize=10))
 
 ```
+
+<div class='figure'>
 
 ```{r hm-plot, fig.height=8, fig.width=7}
 Heatmap(n_count,
@@ -412,10 +412,12 @@ Heatmap(n_count,
   ComplexHeatmap::draw(heatmap_legend_side = "bottom")
 ```
 
+</div>
+
 
 <br><br>
 
-[DEGs list overview]{.p-140 .p-red .p-bold}
+[DEGs list overview]{.p-140 .red .bold}
 
 ```{r degs}
 genes_list <- list(
@@ -428,11 +430,7 @@ genes_list <- list(
 ```
 
 
-- Up regulated genes: [`r length(genes_list$up_genes)`]{.p-bold .p-red}
-
-```{r up-genes, class.output="scroll-200-red"}
-unname(genes_list$up_genes)
-```
+- Up regulated genes: [`r length(genes_list$up_genes)`]{.bold .red}
 
 ```{r}
 all_results_filt %>% 
@@ -440,13 +438,31 @@ all_results_filt %>%
   dplyr::count(Gene_biotype)
 ```
 
+<br>
+[1- `protein-coding` genes]{.bold}
+<br>
 
-
-- Down regulated genes: [`r length(genes_list$down_genes)`]{.p-bold .p-green}
-
-```{r down-genes, class.output="scroll-200-green"}
-unname(genes_list$down_genes)
+```{r up-genes-prot, class.output="scroll-200 red"}
+all_results_filt %>% 
+  dplyr::filter(Gene_biotype == "protein_coding",
+                log2FoldChange > 0) %>% 
+  dplyr::pull(Gene_name)
 ```
+
+[2- `lncRNA` genes]{.bold}
+<br>
+
+```{r up-genes-lncRNA, class.output="scroll-200 red"}
+all_results_filt %>% 
+  dplyr::filter(Gene_biotype == "lncRNA",
+                log2FoldChange > 0) %>% 
+  dplyr::pull(Gene_name)
+```
+
+<br>
+
+
+- Down regulated genes: [`r length(genes_list$down_genes)`]{.bold .green}
 
 ```{r}
 all_results_filt %>% 
@@ -455,8 +471,30 @@ all_results_filt %>%
 ```
 
 <br>
+[1- `protein-coding` genes]{.bold}
+<br>
 
-[Now inspecting the gene biotypes]{.p-120 .p-bold .p-purple}
+```{r down-genes-prot, class.output="scroll-200 green"}
+all_results_filt %>% 
+  dplyr::filter(Gene_biotype == "protein_coding",
+                log2FoldChange < 0) %>% 
+  dplyr::pull(Gene_name)
+```
+
+[2- `lncRNA` genes]{.bold}
+<br>
+
+```{r down-genes-lncRNA, class.output="scroll-200 green"}
+all_results_filt %>% 
+  dplyr::filter(Gene_biotype == "lncRNA",
+                log2FoldChange < 0) %>% 
+  dplyr::pull(Gene_name)
+```
+
+
+<br>
+
+[Now inspecting the gene biotypes]{.p-120 .bold .purple}
 
 <br>
 
@@ -524,9 +562,23 @@ rbind(all_results_filt %>%
 
 # Pathway enrichment analysis (PEA)
 
-## Gene Ontology (GO) {.tabset .tabset-pills}
+## Gene Ontology (GO) 
 
-<br>
+```{r}
+## Params:
+all_genes_protcoding <- all_results_filt %>% 
+  dplyr::filter(Gene_biotype == "protein_coding") %>% 
+  dplyr::pull(Gene_name)
+
+down_genes_protcoding <- all_results_filt %>% 
+  dplyr::filter(Gene_biotype == "protein_coding",
+                log2FoldChange < 0) %>% 
+  dplyr::pull(Gene_name)
+
+terms_list <- list()
+
+```
+
 
 <div class="note">
 <p class="p-120 p-bold p-purple p-underline">
@@ -535,20 +587,19 @@ NOTE:
 <P class="p-bold">
 For the downstream analysis, only `protein_coding` genes will be kept to ensure the significance of the resulting terms!
 </p>
+<P class="p-bold">
+We will be using first all the `protein_coding` DEGs (`r length(all_genes_protcoding)`) then only Down-regulated one (`r length(down_genes_protcoding)`)
+</p>
 </div>
 
 <br>
 
-```{r}
-## Params:
-all_genes_protcoding <- all_results_filt %>% 
-  dplyr::filter(Gene_biotype == "protein_coding") %>% 
-  dplyr::pull(Gene_name)
 
-```
+### All DEGs {.tabset .tabset-pills}
 
+Let's inspect the pathways enriched with all the DEGs (up & down) that are `protein_coding`
 
-### Results {.unnamed .unlisted}
+#### Results {.unnamed .unlisted}
 
 ```{r}
 go.obj <- enrichGO(gene = all_genes_protcoding,
@@ -559,6 +610,8 @@ go.obj <- enrichGO(gene = all_genes_protcoding,
                    readable = T,
                    ont = "BP")
 
+saveRDS(go.obj, file = paste0(out_obj, "goObj_allDegs.rds"))
+
 go.res <- go.obj@result %>%
   dplyr::filter(p.adjust < 0.05) %>%
   dplyr::arrange(p.adjust) %>% 
@@ -566,28 +619,30 @@ go.res <- go.obj@result %>%
                 RichFactor_ratio = paste0(Count,"/",as.numeric(sub("/\\d+","",BgRatio)))) %>% 
   dplyr::select(Description, RichFactor, p.adjust, GeneRatio, BgRatio, Count, BgGenes, RichFactor_ratio, geneID)
 
+data.frame(ID = rownames(go.res), go.res) %>% write_xlsx(paste0(out_obj,"goResults_allDegs.xlsx"))
+
 go.res %>% DT::datatable(options = list(pageLength = 5, scrollX = T))
 ```
 
 <br>
 
-[The top 30 most significant pathways enriched with these DEGs are]{.p-120 .p-bold .p-green}
+[The top 40 most significant pathways enriched with these DEGs are]{.p-120 .bold .green}
 
-```{r ,class.output="scroll-200-red"}
-go.res %>% head(30) %>% dplyr::pull(Description)
+```{r ,class.output="scroll-300 red"}
+go.res %>% head(40) %>% dplyr::pull(Description)
 ```
 
 <br>
 
-[The top 30 pathway with the highest `RichFactor` (Count per pathway length ratio)]{.p-120 .p-bold .p-green}
+[The top 40 pathway with the highest `RichFactor` (Count per pathway length ratio)]{.p-120 .bold .green}
 
-```{r ,class.output="scroll-200-red"}
-go.res %>% dplyr::arrange(desc(RichFactor)) %>%  head(30) %>% dplyr::pull(Description)
+```{r ,class.output="scroll-300 red"}
+go.res %>% dplyr::arrange(desc(RichFactor)) %>%  head(40) %>% dplyr::pull(Description)
 ```
 
 <br><br>
 
-### Dotplot {.unnamed .unlisted}
+#### Dotplot {.unnamed .unlisted}
 
 
 ```{r ,fig.height=10, fig.width=9}
@@ -615,35 +670,50 @@ go.res %>%
 
 <br><br>
 
-### Cnet plot {.unnamed .unlisted}
+#### Cnet plot {.unnamed .unlisted}
 
 ```{r ,fig.height=10, fig.width=12}
+
+sel <- c("leukocyte activation",
+         "leukocyte differentiation",
+         "integrated stress response signaling",
+         "regulation of hemopoiesis")
 
 Net_plot(GOobject = go.obj,
          DEAres = all_results_filt,
          condition.name = "JK-H151",
-         select.terms = terms$Description[1:4],
-         net.layout = "nicely",
-         edge.params = list(color = NULL,
-                            alpha = .3,
-                            width = .8),
-         node.params = list(term.col = "black",
-                            term.size = c(10,6),
-                            gene.col = "logFC",
-                            gene.shape =F,
-                            gene.size = 6,
-                            gene.alpha = .9),
-         label.params = list(gene.col = c("navy", "black"),
-                             gene.size = 3.5)) -> p1 ; p1$plot
+         select.terms = sel,
+         nterm = 3,
+         edge.param.color = NULL,
+         edge.param.width = .7,
+         edge.param.alpha = .4,
+         edge.legend.width = 1.9,
+         edge.legend.position = "top",
+         edge.legend.direction = "horizontal",
+         edge.legend.layers = 1,
+         edge.legend.fontsize = 12,
+         node.param.term.color = "black",
+         node.param.term.size = c(11,7),
+         node.param.gene.logFC = T,
+         node.param.gene.color = "darkcyan",
+         node.param.gene.size = 5,
+         node.param.gene.alpha = .9,
+         label.genes = T,
+         label.gene.color = c("red","purple","black"),
+         label.gene.size = 3,
+         label.gene.alpha = 0.9,
+         label.gene.repel = T) -> p ; p$plot
 
 ```
 
 <br>
 
-```{r ,fig.height=7, fig.width=8}
+<div class='figure'>
+
+```{r ,fig.height=7, fig.width=9}
 term_list <- list()
-for(i in unique(p1$netdata$Term)){
-  term_list[[i]] <- p1$netdata$Gene[p1$netdata$Term == i]
+for(i in unique(p$netdata$Term)){
+  term_list[[i]] <- p$netdata$Gene[p$netdata$Term == i]
 }
 
 Genes_comparison <- Display_Venn(Markers = term_list, 
@@ -656,35 +726,135 @@ Genes_comparison <- Display_Venn(Markers = term_list,
 Genes_comparison$plot
 ```
 
+</div>
+
+```{r}
+terms_list[["termsFromGO.AllGenes"]] <- go.res$Description
+```
+
+
 <br><br>
 
+### Down DEGs {.tabset .tabset-pills}
+
+#### Results {.unnamed .unlisted}
+
+```{r}
+go.obj <- enrichGO(gene = down_genes_protcoding,
+                   OrgDb = "org.Hs.eg.db",
+                   keyType = "SYMBOL",
+                   minGSSize = 10,
+                   maxGSSize = 1000,
+                   readable = T,
+                   ont = "BP")
+
+saveRDS(go.obj, file = paste0(out_obj, "goObj_downDegs.rds"))
+
+go.res <- go.obj@result %>%
+  dplyr::filter(p.adjust < 0.05) %>%
+  dplyr::arrange(p.adjust) %>% 
+  dplyr::mutate(BgGenes = as.numeric(sub("/\\d+","",BgRatio)),
+                RichFactor_ratio = paste0(Count,"/",as.numeric(sub("/\\d+","",BgRatio)))) %>% 
+  dplyr::select(Description, RichFactor, p.adjust, GeneRatio, BgRatio, Count, BgGenes, RichFactor_ratio, geneID)
+
+data.frame(ID = rownames(go.res), go.res) %>% write_xlsx(paste0(out_obj,"goResults_downDegs.xlsx"))
+
+go.res %>% DT::datatable(options = list(pageLength = 10, scrollX = T))
+```
+
+<br>
+
+[The top 50 most significant pathways enriched with these DEGs are]{.p-120 .bold .green}
+
+```{r ,class.output="scroll-300 blue"}
+go.res %>% head(50) %>% dplyr::pull(Description)
+```
+
+<br>
+
+[The top 50 pathway with the highest `RichFactor` (Count per pathway length ratio)]{.p-120 .bold .green}
+
+```{r ,class.output="scroll-300 blue"}
+go.res %>% dplyr::arrange(desc(RichFactor)) %>%  head(50) %>% dplyr::pull(Description)
+```
+
+<br><br>
+
+#### Dotplot {.unnamed .unlisted}
+
+
+```{r ,fig.height=11, fig.width=10}
+terms <- go.res %>% head(50)
+
+go.res %>% 
+  dplyr::filter(Description %in% terms$Description) %>% 
+  dplyr::mutate(Description = ifelse(nchar(Description) <= 50,
+                                     Description,
+                                     paste0(substr(Description,1,50), "...."))) %>% 
+  ggplot(aes(x= RichFactor, y= forcats::fct_reorder(Description, RichFactor)))+
+  geom_segment(aes(xend= 0, yend= Description))+
+  geom_point(aes(color= p.adjust, size= Count))+
+  geom_text(aes(label = RichFactor_ratio), 
+            size = 3, 
+            colour = "darkred", 
+            nudge_x = ifelse(terms$RichFactor > max(terms$RichFactor)/3, 0.025, 0.045))+
+  scale_color_viridis_c(guide = guide_colorbar(reverse = T))+
+  scale_size_continuous(range = c(2,7))+
+  labs(title = paste0("Top ", nrow(terms), " significant enriched pathways"),
+       y = "")+
+  xlim(c(0, (max(terms$RichFactor)+0.05)))+
+  my_general_theme()+
+  theme(
+    axis.text.y = element_text(face = "bold")
+  )
+```
+
+<br><br>
+
+#### Cnet plot {.unnamed .unlisted}
+
 ```{r ,fig.height=10, fig.width=12}
+
+sel <- c("leukocyte activation",
+         "leukocyte differentiation",
+         "ferroptosis",
+         "regulation of hemopoiesis")
 
 Net_plot(GOobject = go.obj,
          DEAres = all_results_filt,
          condition.name = "JK-H151",
-         select.terms = terms$Description[5:8],
-         net.layout = "nicely",
-         edge.params = list(color = NULL,
-                            alpha = .3,
-                            width = .8),
-         node.params = list(term.col = "black",
-                            term.size = c(10,6),
-                            gene.col = "logFC",
-                            gene.shape =F,
-                            gene.size = 6,
-                            gene.alpha = .9),
-         label.params = list(gene.col = c("navy", "black"),
-                             gene.size = 3.5)) -> p2 ; p2$plot
+         select.terms = sel,
+         nterm = 3,
+         edge.param.color = NULL,
+         edge.param.width = .7,
+         edge.param.alpha = .4,
+         edge.legend.width = 1.9,
+         edge.legend.position = "top",
+         edge.legend.direction = "horizontal",
+         edge.legend.layers = 1,
+         edge.legend.fontsize = 12,
+         node.param.term.color = "black",
+         node.param.term.size = c(11,7),
+         node.param.gene.logFC = T,
+         node.param.gene.color = "darkcyan",
+         node.param.gene.size = 5,
+         node.param.gene.alpha = .9,
+         label.genes = T,
+         label.gene.color = c("red","purple","black"),
+         label.gene.size = 3,
+         label.gene.alpha = 0.9,
+         label.gene.repel = T) -> p ; p$plot
 
 ```
 
 <br>
 
+<div class='figure'>
+
 ```{r ,fig.height=7, fig.width=8}
 term_list <- list()
-for(i in unique(p2$netdata$Term)){
-  term_list[[i]] <- p2$netdata$Gene[p2$netdata$Term == i]
+for(i in unique(p$netdata$Term)){
+  term_list[[i]] <- p$netdata$Gene[p$netdata$Term == i]
 }
 
 Genes_comparison <- Display_Venn(Markers = term_list, 
@@ -697,144 +867,618 @@ Genes_comparison <- Display_Venn(Markers = term_list,
 Genes_comparison$plot
 ```
 
-<br><br>
+</div>
 
-```{r ,fig.height=10, fig.width=12}
-
-Net_plot(GOobject = go.obj,
-         DEAres = all_results_filt,
-         condition.name = "JK-H151",
-         select.terms = terms$Description[9:12],
-         net.layout = "nicely",
-         edge.params = list(color = NULL,
-                            alpha = .3,
-                            width = .8),
-         node.params = list(term.col = "black",
-                            term.size = c(10,6),
-                            gene.col = "logFC",
-                            gene.shape =F,
-                            gene.size = 6,
-                            gene.alpha = .9),
-         label.params = list(gene.col = c("navy", "black"),
-                             gene.size = 3.5)) -> p3 ; p3$plot
-
+```{r}
+terms_list[["termsFromGO.DownGenes"]] <- go.res$Description
 ```
 
-<br>
 
-```{r ,fig.height=7, fig.width=8}
-term_list <- list()
-for(i in unique(p3$netdata$Term)){
-  term_list[[i]] <- p3$netdata$Gene[p3$netdata$Term == i]
+
+
+
+
+## Molecular Signature Database (MSigDb)
+
+The MSigDb is a collection of annotated gene sets. It contains 8 major collections:
+
+- __H :__ hallmark gene sets
+- __C1 :__ positional gene sets
+- __C2 :__ curated gene sets
+- __C3 :__ motifs gene sets
+- __C4 :__ computational gene sets
+- __C5 :__ GO gene sets
+- __C6 :__ oncogenic signatures
+- __C7 :__ immunologic signatures
+- __C8 :__ cell Type Signature
+
+```{r}
+gene_sets <- msigdbr()
+gene_sets <- gene_sets %>% 
+  dplyr::select(gene_symbol, 
+                ncbi_gene, 
+                ensembl_gene, 
+                gs_id, gs_name, 
+                gs_collection, 
+                gs_subcollection,
+                gs_collection_name) %>% 
+  dplyr::mutate(collection = paste0(gs_collection, " : ", gs_collection_name))
+
+conv_genes <- bitr(down_genes_protcoding, 
+                   fromType = "SYMBOL",
+                   toType = "ENTREZID",
+                   OrgDb = "org.Hs.eg.db")
+```
+
+```{r, class.output="scroll-500"}
+table(gene_sets[,c("gs_collection_name","gs_collection")])
+```
+
+
+<br><br>
+
+Let's see the results using different selections and using down regulated genes
+
+```{r}
+msigdb.obj.list <- list()
+for(i in unique(gene_sets$collection)){
+  msigdb.obj.list[[i]] <- enricher(gene = conv_genes$ENTREZID,
+                                   TERM2GENE = gene_sets[gene_sets$collection == i,
+                                             c("gs_name", "ncbi_gene")])
 }
 
-Genes_comparison <- Display_Venn(Markers = term_list, 
-                                 colpalette = NULL, 
-                                 set.names = NULL, 
-                                 set.name.size = 4,
-                                 text.size = 4,
-                                 Padding = 0.05)
-
-Genes_comparison$plot
+saveRDS(msigdb.obj.list, file = paste0(out_obj, "msigdb.obj.list.rds"))
 ```
 
-<br><br>
-
-```{r ,fig.height=10, fig.width=12}
-
-Net_plot(GOobject = go.obj,
-         DEAres = all_results_filt,
-         condition.name = "JK-H151",
-         select.terms = terms$Description[13:16],
-         net.layout = "nicely",
-         edge.params = list(color = NULL,
-                            alpha = .3,
-                            width = .8),
-         node.params = list(term.col = "black",
-                            term.size = c(10,6),
-                            gene.col = "logFC",
-                            gene.shape =F,
-                            gene.size = 6,
-                            gene.alpha = .9),
-         label.params = list(gene.col = c("navy", "black"),
-                             gene.size = 3.5)) -> p4 ; p4$plot
-
-```
-
-<br>
-
-```{r ,fig.height=7, fig.width=8}
-term_list <- list()
-for(i in unique(p4$netdata$Term)){
-  term_list[[i]] <- p4$netdata$Gene[p4$netdata$Term == i]
+```{r, class.output="scroll-500"}
+for(i in names(msigdb.obj.list)){
+  cat(sprintf("%-45s: %s", 
+              i, 
+              paste0(nrow(msigdb.obj.list[[i]]), " significant terms")),
+      sep = "\n")
 }
 
-Genes_comparison <- Display_Venn(Markers = term_list, 
-                                 colpalette = NULL, 
-                                 set.names = NULL, 
-                                 set.name.size = 4,
-                                 text.size = 4,
-                                 Padding = 0.05)
-
-Genes_comparison$plot
 ```
-
 
 <br><br>
 
-## Gene Set Enrichment Analysis (GSEA)
+[- C6 : Oncogenic signatures]{.bold .p-120 .blue}
 
-__GSEA__ is a functional class scoring method for enrichment analysis! It uses the whole set of genes ranked by the chosen scoring method: in our case, ranked by `p.adjust` and `logFC` values
+```{r}
+msigdb.res <- msigdb.obj.list$`C6 : Oncogenic Signature`@result %>% 
+  dplyr::filter(p.adjust < 0.05) %>% 
+  dplyr::arrange(p.adjust)
 
-- Higher scores represent the __most significant Up regulated genes__
-- Lower scores represent the __most significant Down regulated genes__
-- In between are the not significant genes
+msigdb.res %>% 
+  datatable(options = list(scrollX = T, pageLength = 5))
+```
 
-```{r echo=TRUE}
-ranked_genes <- bitr(all_results$ensembl, 
-                     fromType = "ENSEMBL",
-                     toType = "ENTREZID",
-                     OrgDb = "org.Hs.eg.db") %>% 
-  dplyr::mutate(ensembl = ENSEMBL) %>% 
-  inner_join(all_results, by = "ensembl") %>% 
-  dplyr::select(ENSEMBL, ENTREZID, Gene_name, padj, log2FoldChange, Gene_biotype) %>% 
-  dplyr::filter(Gene_biotype == "protein_coding",
-                padj < 0.5,
-                abs(log2FoldChange) >= 0.1) %>% 
-  dplyr::mutate(padj = padj + 1e-300,
-                rank = -log10(padj)*sign(log2FoldChange)) %>% 
-  dplyr::group_by(ENTREZID) %>% 
-  dplyr::slice_max(order_by = abs(rank), n = 1, with_ties = FALSE) %>% 
-  ungroup() %>%
-  dplyr::arrange(desc(rank))
+<br><br>
 
-ranked_genes <- setNames(ranked_genes$rank, ranked_genes$ENTREZID)
-ranked_genes <- ranked_genes[intersect(names(ranked_genes), 
-                                       keys(org.Hs.eg.db, keytype = "ENTREZID"))]
+[- C7 : Immunologic signatures]{.bold .p-120 .blue}
 
+```{r}
+msigdb.res <- msigdb.obj.list$`C7 : ImmuneSigDB`@result %>% 
+  dplyr::filter(p.adjust < 0.05) %>% 
+  dplyr::arrange(p.adjust)
+
+msigdb.res %>% 
+  datatable(options = list(scrollX = T, pageLength = 5))
+```
+
+<br><br>
+
+[- C5 : GO Biological Process]{.bold .p-120 .blue}
+
+```{r}
+msigdb.res <- msigdb.obj.list$`C5 : GO Biological Process`@result %>% 
+  dplyr::filter(p.adjust < 0.05) %>% 
+  dplyr::arrange(p.adjust)
+
+msigdb.res %>% 
+  datatable(options = list(scrollX = T, pageLength = 5))
+```
+
+<br><br>
+
+[- C8 : Cell Type Signature]{.bold .p-120 .blue}
+
+```{r}
+msigdb.res <- msigdb.obj.list$`C8 : Cell Type Signature`@result %>% 
+  dplyr::filter(p.adjust < 0.05) %>% 
+  dplyr::arrange(p.adjust)
+
+msigdb.res %>% 
+  datatable(options = list(scrollX = T, pageLength = 5))
+```
+
+<br><br>
+
+[- H : Hallmark]{.bold .p-120 .blue}
+
+```{r}
+msigdb.res <- msigdb.obj.list$`H : Hallmark`@result %>% 
+  dplyr::filter(p.adjust < 0.05) %>% 
+  dplyr::arrange(p.adjust)
+
+msigdb.res %>% 
+  datatable(options = list(scrollX = T, pageLength = 5))
 ```
 
 
 ```{r}
-gsea.obj <- gseGO(geneList = ranked_genes,
-                  OrgDb = org.Hs.eg.db,
-                  ont = "BP",
-                  keyType = "ENTREZID",
-                  minGSSize = 10,
-                  maxGSSize = 1500,
-                  pvalueCutoff = 0.05,
-                  verbose = F,
-                  nPermSimple = 10000) %>% 
-  setReadable(OrgDb = 'org.Hs.eg.db', keyType = "ENTREZID")
+genes_list[["all_protein_coding"]] <- all_genes_protcoding
+genes_list[["down_protein_coding"]] <- down_genes_protcoding
+genes_list[["up_protein_coding"]] <- setdiff(all_genes_protcoding,
+                                              down_genes_protcoding)
 
-gsea.result <- gsea.obj@result
+rm(Pre_process, nlog_scale_data, selected_genes,
+   sel, i, Cond, ColConditions, terms, term_list,
+   raw_counts, pre_process_results, p, norm_counts,
+   n_count, msigdb.res, log_counts, heatmap_legend_param,
+   HAnnot, HAnnot2, Genes_comparison, gene_sets, 
+   conv_genes, all_data, raw_counts_filt, res,
+   all_genes_protcoding, down_genes_protcoding)
+```
 
-if(nrow(gsea.result) > 0){
-  gsea.result %>% datatable(options = list(pageLength = 10, scrollX = TRUE))
-} else {
-  print("No results found!")
+
+
+
+
+
+
+
+
+
+## Gene Set Enrichment Analysis (GSEA) {.tabset .tabset-pills}
+
+__GSEA__ is a functional class scoring method that evaluates whether predefined gene sets show statistically significant, concordant differences between two biological conditions.
+Unlike over-representation approaches, GSEA uses the entire ranked list of genes, avoiding the need for an arbitrary significance cutoff.
+
+In this analysis, genes were ranked using a composite score based on both:
+
+- the magnitude and direction of differential expression (`log2FoldChange`)
+- the statistical significance (`adjusted p-value`, `padj`)
+
+<br>
+
+[Interpretation of the ranking score]{.bold .p-120 .red}
+
+- High positive scores correspond to the most significant __up-regulated genes__
+- High negative scores correspond to the most significant __down-regulated genes__
+- Scores close to zero represent non-significant genes
+
+<br>
+
+[The ranking score was computed according to the following rule:]{.bold}
+
+```{r, eval=FALSE, echo=TRUE}
+ranking <- case_when(
+  abs(log2FoldChange) >= 3 & padj < 0.5 ~
+    round((sign(log2FoldChange) * 3) * (-log10(padj) / 10), 4),
+
+  abs(log2FoldChange) < 3 & padj < 0.5 ~
+    round(log2FoldChange * (-log10(padj) / 10), 4),
+
+  padj >= 0.5 ~ 0
+)
+```
+
+So basically 
+
+$$Score=log2​(FC)×(−log10​(padj​))$$
+Where beyond an absolute `log2FoldChange` value of 3, the ranking metric is only driven by the statistical significance `padj`. 
+
+Genes with `padj ≥ 0.5` are assigned a score of zero, effectively positioning them in the middle of the ranked list.
+
+[This scoring strategy allows a balanced integration of effect size and statistical confidence, making it suitable for downstream GSEA]{.bold .green}
+
+```{r}
+rankedGenes <- setNames(all_results$Rank, all_results$Gene_name)
+```
+
+<br>
+
+For this analysis we going to use __gene sets__ from the MSigDB (as already seen above)
+
+- __H :__ hallmark gene sets
+- __C5 :__ GO gene sets
+- __C6 :__ oncogenic signatures
+
+```{r}
+gmtFolder <- "D:/Projects/Jurkat/gsea-geneSets/"
+gmtFiles <- list.files(gmtFolder)
+gmtList <- list()
+for(i in gmtFiles){
+  gmtList[[str_split_i(i, ".v2025", 1)]] <- getGmtPaths(gmtFile = paste0(gmtFolder, i),
+                                                        genes = names(rankedGenes))
 }
 ```
+
+```{r}
+gseaResultsList <- list()
+for(i in names(gmtList)){
+  gseaResultsList[[i]] <- fgsea(pathways = gmtList[[i]],
+                                stats = rankedGenes,
+                                minSize = 5)
+}
+
+gseaResultsList <- lapply(gseaResultsList, function(x) {
+  x <- x %>% 
+    dplyr::filter(padj < 0.05, NES < 0) %>% 
+    dplyr::mutate(nGenes = map_int(leadingEdge, length),
+                  leadingEdgeFraction = nGenes / size) %>% 
+    dplyr::arrange(padj)
+})
+```
+
+```{r}
+gmtList %>% saveRDS(paste0(out_obj, "gmtList.rds"))
+gseaResultsList %>% saveRDS(paste0(out_obj, "gseaResList-neg.rds"))
+```
+
+
+```{css}
+.gsea-gallery {
+  position: relative;
+  max-width: 100%;
+  margin: auto;
+}
+
+.gsea-gallery img {
+  display: none;
+  width: 85%;
+  margin: 0 auto;
+  border-radius: 15px;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.3)
+}
+
+.gsea-gallery img.active {
+  display: block;
+}
+
+.gsea-gallery .nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0,0,0,0.3);
+  border-radius: 15px;
+  color: white;
+  border: none;
+  font-size: 22px;
+  padding: 20px 10px;
+  cursor: pointer;
+  z-index: 10;
+  
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.6)
+  }
+}
+
+.gsea-gallery .prev {
+  left: 3px;
+}
+
+.gsea-gallery .next {
+  right: 3px;
+}
+
+```
+
+```{css}
+.gsea-dots-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: 13px;
+  overflow: hidden;
+}
+
+.gsea-dots {
+  display: flex;
+  gap: 8px;
+  max-width: 160px; /* ~8 dots */
+  overflow-x: auto;
+  padding: 4px 2px;
+  scrollbar-width: none;
+}
+
+.gsea-dots::-webkit-scrollbar {
+  display: none;
+}
+
+.gsea-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition: all 0.2s ease;
+}
+
+.gsea-dot.active {
+  background: rgba(0, 0, 0, 0.8);
+  transform: scale(1.4);
+}
+
+```
+
+
+
+
+### Hallmarks
+
+```{r}
+gseaResultsList$h.all %>%
+  datatable(options = list(scrollX = T, pageLength = 10))
+```
+
+[Below is the results represented in a dot plot]{.bold .purple .p-120}
+
+```{r ,fig.height=6, fig.width=8}
+gseaResultsList$h.all %>% 
+  dplyr::mutate(pathway = if_else(nchar(pathway) <= 60,
+                                  pathway,
+                                  paste0(substr(pathway, 0, 59), "...."))) %>% 
+  ggplot(aes(x= NES, y= forcats::fct_reorder(pathway, dplyr::desc(NES))))+
+  geom_point(aes(colour = leadingEdgeFraction,
+                 size = size),
+             alpha = 0.8)+
+  labs(y = "",
+       title = "Significant pathways enriched by GSEA")+
+  scale_color_gradient(low = "#55eedd", high = "#005040")+
+  scale_size_continuous(range = c(2,6))+
+  my_general_theme()+
+  theme(
+    axis.text = element_text(face = "bold",
+                             size = 10),
+    plot.title = element_text(size = 13),
+    axis.title = element_text(size = 12),
+    plot.caption = element_text(size = 10,
+                                colour = "gray25"),
+    legend.title = element_text(size = 12)
+  )
+```
+
+<br><br>
+
+[Now let's view the enrichment plots]{.bold .purple .p-120}
+
+<br>
+
+<div class="gsea-gallery">
+
+```{r}
+pathways <- gseaResultsList$h.all %>% 
+  dplyr::pull(pathway)
+
+
+for(pathway in pathways){
+  p <- gseaEnrichPlot(gseaResults = gseaResultsList$h.all,
+                      rankedGenes = rankedGenes,
+                      pathwayName = pathway,
+                      pathwayGenes = gmtList$h.all[[pathway]],
+                      genesToHighlight = genes_list$down_protein_coding,
+                      segmentsSizeScale = 0.05,
+                      segmentLineWidth = 0.3,
+                      lineWidth = 0.08,
+                      lineColour = "purple")
+  
+  
+  
+  print(p)
+}
+```
+
+<button class="nav prev">◀</button>
+<button class="nav next">▶</button>
+</div>
+
+
+
+
+### C5: GO gene sets
+
+```{r}
+gseaResultsList$c5.go.bp %>% 
+  datatable(options = list(scrollX = T, pageLength = 10))
+```
+
+[Below is the results represented in a dot plot]{.bold .purple .p-120}
+
+```{r ,fig.height=9, fig.width=10}
+gseaResultsList$c5.go.bp %>% 
+  dplyr::mutate(pathway = if_else(nchar(pathway) <= 60,
+                                  pathway,
+                                  paste0(substr(pathway, 0, 59), "....")),
+                nGenes = map_int(leadingEdge, length),
+                leadingEdgeFraction = nGenes / size) %>% 
+  ggplot(aes(x= NES, y= forcats::fct_reorder(pathway, dplyr::desc(NES))))+
+  geom_point(aes(colour = leadingEdgeFraction,
+                 size = size),
+             alpha = 0.8)+
+  labs(y = "",
+       title = "Significant pathways enriched by GSEA")+
+  scale_color_gradient(low = "#55eedd", high = "#005040")+
+  scale_size_continuous(range = c(2,6))+
+  my_general_theme()+
+  theme(
+    axis.text = element_text(face = "bold",
+                             size = 9),
+    plot.title = element_text(size = 12),
+    axis.title = element_text(size = 11),
+    plot.caption = element_text(size = 10,
+                                colour = "gray25"),
+    legend.title = element_text(size = 11)
+  )
+```
+
+<br><br>
+
+[Now let's view the enrichment plots]{.bold .purple .p-120}
+
+<br>
+
+<div class="gsea-gallery">
+
+```{r}
+pathways <- gseaResultsList$c5.go.bp %>% 
+  dplyr::pull(pathway)
+
+for(pathway in pathways){
+  p <- gseaEnrichPlot(gseaResults = gseaResultsList$c5.go.bp,
+                      rankedGenes = rankedGenes,
+                      pathwayName = pathway,
+                      pathwayGenes = gmtList$c5.go.bp[[pathway]],
+                      genesToHighlight = genes_list$down_protein_coding,
+                      segmentsSizeScale = 0.05,
+                      segmentLineWidth = 0.3,
+                      lineWidth = 0.08,
+                      lineColour = "purple")
+  
+  
+  
+  print(p)
+}
+```
+
+<button class="nav prev">◀</button>
+<button class="nav next">▶</button>
+</div>
+
+
+### C6: oncogenic signatures
+
+```{r}
+gseaResultsList$c6.all %>% 
+  datatable(options = list(scrollX = T, pageLength = 10))
+```
+
+[Below is the results represented in a dot plot]{.bold .purple .p-120}
+
+```{r ,fig.height=9, fig.width=10}
+gseaResultsList$c6.all %>% 
+  dplyr::mutate(pathway = if_else(nchar(pathway) <= 60,
+                                  pathway,
+                                  paste0(substr(pathway, 0, 59), "....")),
+                nGenes = map_int(leadingEdge, length),
+                leadingEdgeFraction = nGenes / size) %>% 
+  ggplot(aes(x= NES, y= forcats::fct_reorder(pathway, dplyr::desc(NES))))+
+  geom_point(aes(colour = leadingEdgeFraction,
+                 size = size),
+             alpha = 0.8)+
+  labs(y = "",
+       title = "Significant pathways enriched by GSEA")+
+  scale_color_gradient(low = "#55eedd", high = "#005040")+
+  scale_size_continuous(range = c(2,6))+
+  my_general_theme()+
+  theme(
+    axis.text = element_text(face = "bold",
+                             size = 10),
+    plot.title = element_text(size = 13),
+    axis.title = element_text(size = 12),
+    plot.caption = element_text(size = 10,
+                                colour = "gray25"),
+    legend.title = element_text(size = 12)
+  )
+```
+
+<br><br>
+
+[Now let's view the enrichment plots]{.bold .purple .p-120}
+
+<br>
+
+<div class="gsea-gallery">
+
+```{r}
+pathways <- gseaResultsList$c6.all %>% 
+  dplyr::pull(pathway)
+
+for(pathway in pathways){
+  p <- gseaEnrichPlot(gseaResults = gseaResultsList$c6.all,
+                      rankedGenes = rankedGenes,
+                      pathwayName = pathway,
+                      pathwayGenes = gmtList$c6.all[[pathway]],
+                      genesToHighlight = genes_list$down_protein_coding,
+                      segmentsSizeScale = 0.05,
+                      segmentLineWidth = 0.3,
+                      lineWidth = 0.08,
+                      lineColour = "purple")
+  
+  
+  
+  print(p)
+}
+```
+
+<button class="nav prev">◀</button>
+<button class="nav next">▶</button>
+</div>
+
+
+
+```{js}
+document.addEventListener("DOMContentLoaded", function () {
+  document.querySelectorAll(".gsea-gallery").forEach(gallery => {
+
+    const images = gallery.querySelectorAll("img");
+    let index = 0;
+
+    /* --- dots container --- */
+    const dotsWrapper = document.createElement("div");
+    dotsWrapper.className = "gsea-dots-wrapper";
+
+    const dotsContainer = document.createElement("div");
+    dotsContainer.className = "gsea-dots";
+
+    dotsWrapper.appendChild(dotsContainer);
+    gallery.appendChild(dotsWrapper);
+
+    /* --- init dots --- */
+    images.forEach((_, i) => {
+      const dot = document.createElement("span");
+      dot.className = "gsea-dot";
+      dot.addEventListener("click", () => setActive(i));
+      dotsContainer.appendChild(dot);
+    });
+
+    const dots = dotsContainer.querySelectorAll(".gsea-dot");
+
+    function setActive(i) {
+      images[index].classList.remove("active");
+      dots[index].classList.remove("active");
+
+      index = i;
+
+      images[index].classList.add("active");
+      dots[index].classList.add("active");
+
+      /* auto-scroll dots */
+      dots[index].scrollIntoView({
+        behavior: "smooth",
+        inline: "center",
+        block: "nearest"
+      });
+    }
+
+    /* init */
+    images[0].classList.add("active");
+    dots[0].classList.add("active");
+
+    /* arrows */
+    gallery.querySelector(".next").addEventListener("click", () => {
+      setActive((index + 1) % images.length);
+    });
+
+    gallery.querySelector(".prev").addEventListener("click", () => {
+      setActive((index - 1 + images.length) % images.length);
+    });
+  });
+});
+```
+
+
 
 
 

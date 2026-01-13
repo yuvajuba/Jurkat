@@ -1,0 +1,177 @@
+/* ---------------------------------------------------------------- General styling */
+body {
+  background-color: whitesmoke;
+  font-size: 16px;
+}
+
+h1 {
+  background-color: darkcyan;
+  color: white;
+  font-size: 3.8rem;
+  font-weight: 600;
+  padding: 10px;
+  border-radius: 10px;
+  margin-top: 120px;
+}
+
+.title {
+  background-color: inherit;
+  color: darkred;
+  font-size: 4rem;
+  font-weight: 600;
+  padding: 0;
+  margin-top: 20px;
+}
+
+h2, h3, h4, h5 {
+  background-color: inherit;
+  color: darkcyan;
+  font-weight: 600;
+  padding: 0;
+  border-radius: 10px;
+}
+
+h2 {
+  font-size: 3.4rem;
+  margin-top: 70px;
+}
+
+h1 > h2 {margin-top: 15px;}
+h3 {font-size: 3rem;}
+h4 {font-size: 2.6rem;}
+h5 {font-size: 2.2rem;}
+
+.author {
+  background-color: inherit;
+  color: black;
+  font-size: 2rem;
+  font-weight: 600;
+  padding: 0;
+}
+
+.date {
+  background-color: inherit;
+  color: black;
+  font-size: 2rem;
+  font-weight: 600;
+  padding: 0;
+}
+
+p {
+  font-size: 1.6rem;
+  overflow-x: auto;
+}
+
+p:has(img) {
+  border-radius: 15px;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+  scrollbar-width: thin;
+  scrollbar-color: rgb(0, 105, 105) transparent;
+}
+
+p > img {
+  max-width: 1400px;
+}
+
+pre, pre.sourceCode {
+  background-color: white;
+  border: 1px solid silver;
+  border-radius: 15px;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+}
+
+div.sourceCode {
+  border-radius: 15px;
+}
+
+
+/* ---------------------------------------------------------------- TOC */
+.list-group-item.active, .list-group-item.active:hover {
+  background-color: darkcyan;
+  border-color: darkcyan;
+}
+
+.list-group-item {
+  color: darkcyan;
+}
+
+.list-group-item:hover {
+  background-color: darkcyan;
+  color: white;
+}
+
+#TOC {
+  border-radius: 15px;
+}
+
+
+
+/* ---------------------------------------------------------------- Text styling */
+.red {color: darkred;}
+.green {color: darkgreen;}
+.blue {color: navy;}
+.purple {color: purple;}
+.orangered {color: orangered;}
+.cyan {color: darkcyan;}
+
+.bold {font-weight: 600;}
+.p-underline {text-decoration: underline;}
+
+.p-110 {font-size: 110%;}
+.p-120 {font-size: 120%;}
+.p-130 {font-size: 130%;}
+.p-140 {font-size: 140%;}
+
+
+
+/* --------------- Chrome scrollbar ------------ */
+::-webkit-scrollbar {width: 5px;}
+::-webkit-scrollbar-thumb {background-color: rgb(0, 105, 105);}
+
+body ::-webkit-scrollbar {width: 0;}
+
+.datatable {scrollbar-width: thin;}
+
+
+
+/* ---------------------------- Chunk scrolling */
+.scroll-200, 
+.scroll-250,
+.scroll-300,
+.scroll-500,
+.scroll-700{
+  background-color: inherit;
+  overflow-y: auto;
+}
+
+.scroll-200 {max-height: 200px;}
+.scroll-250 {max-height: 250px;}
+.scroll-300 {max-height: 300px;}
+.scroll-500 {max-height: 500px;}
+.scroll-700 {max-height: 700px;}
+
+
+
+
+
+
+/* ----------------- Extra styling -------------------- */
+.note {
+  width: 100%;
+  border: 4px solid rgb(0, 160, 125);
+  background-color: rgba(0, 180, 145, 0.3);
+  padding: 10px;
+  border-radius: 15px;
+}
+
+
+
+
+
+
+
+
+
+
+
+
